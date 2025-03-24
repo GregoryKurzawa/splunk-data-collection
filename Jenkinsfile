@@ -7,8 +7,17 @@ apiVersion: v1
 kind: Pod
 spec:
   containers:
+    - name: jnlp
+      image: jenkins/inbound-agent
+      resources:
+        limits:
+          memory: 512Mi
+          cpu: 500m
+        requests:
+          memory: 256Mi
+          cpu: 250m
     - name: build
-      image: 'hub.docker.com/python/3.14.0a6-alpine3.21'
+      image: 'python:3.14.0a6-alpine3.21'
       command: ["cat"]
       tty: true
 '''
