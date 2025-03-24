@@ -24,11 +24,19 @@ spec:
     }
     
     stages {
+
         stage('Hello') {
             steps {
                 echo 'Hello World'
             }
         }
+
+        stage('Python') {
+            steps {
+                sh 'python3 test.py'
+            }
+        }
+
     }
 }
 
