@@ -33,7 +33,7 @@ spec:
 
         stage('Python') {
             steps {
-                sh 'python3 test.py'
+                sh 'python --version'
             }
         }
 
