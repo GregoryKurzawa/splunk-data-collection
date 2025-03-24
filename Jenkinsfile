@@ -32,12 +32,6 @@ spec:
             }
         }
 
-        stage('Where') {
-            steps {
-                where python3
-            }
-        }
-
         stage('Python') {
             steps {
                 sh 'python3 --version'
