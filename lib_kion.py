@@ -17,9 +17,15 @@ kion = 'https://cloudtamer.cms.gov/api'
 
 def load_app_api_key():
 
-    with open('./kion_app_api_key', 'r') as file:
-        token = file.readline().strip()
-    return token
+    try:
+        with open('./kion_app_api_key', 'r') as file:
+            token = file.readline().strip()
+        return token
+
+    except FileNotFoundError:
+        print("Error: The file does not exist.")
+        return False
+
 
 
 

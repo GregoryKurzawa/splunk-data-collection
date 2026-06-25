@@ -154,14 +154,23 @@ def build_payload(page_iterator):
 # --------------------------------------------------------------------------------------
 
 TOKEN = kion.load_app_api_key()
-print ('kion token loaded')
 
-key_age = kion.get_key_age('python_api_key', TOKEN)
-print ('python_api_key is {} days old'.format( abs(key_age) ))
+if ( TOKEN ):
 
-if abs(key_age) >= 5:
-    print ('refreshing key')
-    TOKEN = kion.rotate_app_api_key(TOKEN)
+    print ('kion token loaded')
+
+    key_age = kion.get_key_age('python_api_key', TOKEN)
+    print ('python_api_key is {} days old'.format( abs(key_age) ))
+
+    if abs(key_age) >= 5:
+        print ('refreshing key')
+        TOKEN = kion.rotate_app_api_key(TOKEN)
+
+else:
+
+    print ('kion token file does not exist; you must generate a key manually in kion; sorry.')
+    exit(0)
+
 
 boto3.setup_default_session( profile_name='849406929254_governance20-application-admin',
 			     region_name='us-east-1' )
