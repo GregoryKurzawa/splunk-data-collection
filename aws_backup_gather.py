@@ -5,8 +5,8 @@ import time
 import datetime
 import json
 import subprocess
-import lib_splunk
-import lib_kion
+import lib_splunk as splunk
+import lib_kion as kion
 
 
 

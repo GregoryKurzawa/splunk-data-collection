@@ -16,7 +16,8 @@ kion = 'https://cloudtamer.cms.gov/api'
 # --------------------------------------------
 
 def load_app_api_key():
-    with open('/home/ubuntu/splunk-data-collection/kion_app_api_key', 'r') as file:
+
+    with open('./kion_app_api_key', 'r') as file:
         token = file.readline().strip()
     return token
 
@@ -77,5 +78,5 @@ def rotate_app_api_key(t):
     r = requests.post(href, headers=h, json=b, verify=False).json()
     newToken = r['data']['key']
 
-    with open('/home/ubuntu/splunk-data-collection/kion_app_api_key', 'w') as file:
+    with open('./kion_app_api_key', 'w') as file:
         file.write(newToken)
