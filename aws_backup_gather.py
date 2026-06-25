@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!./venv/bin/python3
 
 import boto3
 import time
@@ -10,7 +10,7 @@ import lib_kion
 
 
 
-ctkey = '/home/ubuntu/ctkey/ctkey-linux'
+ctkey = './ctkey-linux'
 key_for_aws = 'Splunk efdb579f-f40b-42c4-957d-62b8a4773f9d'
 refreshed_keys = []
 
