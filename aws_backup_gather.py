@@ -5,6 +5,7 @@ import time
 import datetime
 import json
 import subprocess
+import argparse
 import lib_splunk as splunk
 import lib_kion as kion
 
@@ -153,6 +154,17 @@ def build_payload(page_iterator):
 # MAIN
 # --------------------------------------------------------------------------------------
 
+# ------------------------------------------------
+# argument parsing
+# ------------------------------------------------
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-g", "--gov", action='store_true', help="query the GovCloud environment")
+parser.parse_args()
+args = parser.parse_args()
+
+
+
 TOKEN = kion.load_app_api_key()
 
 if ( TOKEN ):
@@ -172,21 +184,27 @@ else:
     exit(0)
 
 
-boto3.setup_default_session( profile_name='849406929254_governance20-application-admin',
-			     region_name='us-east-1' )
-
-
-
 
 # --------------------------------------------------------------------------------------
-# prepare kion environment
+# prepare AWS and kion environments
 # --------------------------------------------------------------------------------------
+
+if ( args.gov ):
+    # GovCloud
+    aId = '373659398962'
+    boto3.setup_default_session( profile_name='373659398962_gss-operations-readonly', region_name='us-east-1' )
+    cloudAccessRole = '--cloud-access-role=gss-operations-readonly'
+
+else:
+    # "regular"
+    aId = '849406929254'
+    boto3.setup_default_session( profile_name='849406929254_governance20-application-admin', region_name='us-east-1' )
+    cloudAccessRole = '--cloud-access-role=governance20-application-admin'
 
 kion_url = '--url=https://cloudtamer.cms.gov'
-cloudAccessRole = '--cloud-access-role=governance20-application-admin'
-account = '--account=849406929254'
+account = '--account=' + aId
 
-print ('fetching new key (via ctkey-linux) for integrated AccountId:849406929254')
+print ('fetching new key (via ctkey-linux) for integrated AccountId:' + aId)
 subprocess.run([ctkey, "savecreds", kion_url, "--app-api-key=" + TOKEN, account, cloudAccessRole])
 
 
