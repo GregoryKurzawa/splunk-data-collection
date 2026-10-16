@@ -3,8 +3,46 @@
 # Currently collects only Autonomous Database (ADB) details.
 # ----------------------------------------------------------------------------------------------
 
+from pathlib import Path
 import lib_oci as loci
 import lib_splunk as splunk
+
+
+
+# ----------------------------------------------------------------------------------------------
+# variables
+# ----------------------------------------------------------------------------------------------
+
+scriptDir = str(Path(__file__).resolve().parent)
+compartmentsList = scriptDir + '/oci_compartments'
+
+
+
+# ----------------------------------------------------------------------------------------------
+# Fetch ADB IOPs metrics.
+# cId: containerId in which the ADB lives.
+# rId: Id of the ADB resource.
+# returns metrics (m) in JSON format
+# ----------------------------------------------------------------------------------------------
+
+def fetch_adb_iops_metrics ( auth, cId, rId ):
+
+    endpoint = 'telemetry.us-langley-1.oraclegovcloud.com/20180401/metrics/actions/summarizeMetricsData'
+
+    body = {
+      'namespace': 'oci_autonomous_database',
+      'query': 'IOPS[15m]{resourceId = "' + rId + '"}.max()',
+      'resolution': '15m'
+    }
+
+    r = loci.post_api_data(auth, endpoint, cId, body).json()
+
+    if (r):
+
+        m = r[0]['aggregatedDatapoints']
+        return m
+
+    return 0
 
 
 
@@ -35,10 +73,7 @@ def fetch_adb_numSessions_metrics ( auth, cId, rId ):
         sessions_3hr = r[0]['aggregatedDatapoints'][0]['value']
         return sessions_3hr
 
-    else:
-
-        print('no metrics')
-        return 0
+    return 0
 
 
 
@@ -69,10 +104,7 @@ def fetch_adb_session_metrics ( auth, cId, rId ):
         sessionUtilization_3hr = r[0]['aggregatedDatapoints'][0]['value']
         return sessionUtilization_3hr
 
-    else:
-
-        print('no metrics')
-        return 0
+    return 0
 
 
 
@@ -103,10 +135,7 @@ def fetch_adb_cpuUtilization_metrics ( auth, cId, rId ):
         cpuUtilization_3hr = r[0]['aggregatedDatapoints'][0]['value']
         return cpuUtilization_3hr
 
-    else:
-
-        print('no metrics')
-        return 0
+    return 0
 
 
 
@@ -135,7 +164,7 @@ cl = []
 # cl = loci.get_all_compartments(auth, rc)
 
 print('using pre-existing compartment list (oci_compartments)')
-with open('oci_compartments', 'r') as file:
+with open(compartmentsList, 'r') as file:
     for c in file:
         cl.append(c.strip())
 
@@ -167,7 +196,6 @@ for compartmentId in cl:
 # Also we modify the "source" and "sourcetype" of the results.
 # ----------------------------------------------------------------------------------------------
 
-print()
 batch_payload = []
 
 for db in adb:
@@ -183,20 +211,20 @@ for db in adb:
         'lifecycleState': db['lifecycleState'],
     }
 
-    print(f"fetching adb cpuUtilization metrics for {db['dbName']}")
+    # print(f"fetching adb cpuUtilization metrics for {db['dbName']}")
     metrics_payload['cpuUtilization_3hr'] = fetch_adb_cpuUtilization_metrics( auth, db['compartmentId'], db['id'] )
 
-    print(f"fetching adb session metrics for {db['dbName']}")
+    # print(f"fetching adb session metrics for {db['dbName']}")
     metrics_payload['sessionUtilization_3hr'] = fetch_adb_session_metrics( auth, db['compartmentId'], db['id'] )
 
-    print(f"fetching adb number of session metrics for {db['dbName']}")
+    # print(f"fetching adb number of session metrics for {db['dbName']}")
     metrics_payload['numSessions_3hr'] = fetch_adb_numSessions_metrics( auth, db['compartmentId'], db['id'] )
 
-    print('session metrics:')
-    print(metrics_payload)
+    # print(f"fetching adb IOPS metrics for {db['dbName']}")
+    metrics_payload['iops_3hr'] = fetch_adb_iops_metrics( auth, db['compartmentId'], db['id'] )
 
     print('shipping adb metrics payload to Splunk')
-    splunk.deliver_payload(metrics_payload, 'adb_metrics', key_for_aws, source='OCI')
+    splunk.deliver_payload(metrics_payload, 'adb_metrics_testing', key_for_aws, source='OCI')
 
     selected_fields_db = {}
 
@@ -221,6 +249,8 @@ for db in adb:
     selected_fields_db['backupDestination'] = db['backupDestination']
     selected_fields_db['backupRetentionPeriodInDays'] = db['backupRetentionPeriodInDays']
     selected_fields_db['byolComputeCountLimit'] = db['byolComputeCountLimit']
+    selected_fields_db['definedTags'] = db['definedTags']
+    selected_fields_db['customerContacts'] = db['customerContacts']
 
     batch_payload.append( {'source': 'OCI', 'sourcetype': 'ADB', 'event': selected_fields_db} )
 
@@ -230,7 +260,7 @@ for db in adb:
 # Send a batch payload to Splunk.
 # ----------------------------------------------------------------------------------------------
 
-print('delivering batch payload to Splunk')
+print('shipping batch payload to Splunk')
 splunk.deliver_batch_payload(batch_payload, key_for_aws)
 
 
