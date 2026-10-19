@@ -121,19 +121,16 @@ def fetch_adb_cpuUtilization_metrics ( auth, cId, rId ):
 
     body = {
       'namespace': 'oci_autonomous_database',
-      'query': 'CpuUtilization[3h]{resourceId = "' + rId + '"}.mean()',
-      'resolution': '3h'
-      # "query": 'CpuUtilization[3h].mean()',
-      # "startTime": "2026-10-03T00:00:00.000Z",    # defaults to 3 hours ago
-      # "endTime": "2026-10-06T00:00:00.000Z",      # defaults to now
+      'query': 'CpuUtilization[15m]{resourceId = "' + rId + '"}.mean()',
+      'resolution': '15m'
     }
 
     r = loci.post_api_data(auth, endpoint, cId, body).json()
 
     if (r):
 
-        cpuUtilization_3hr = r[0]['aggregatedDatapoints'][0]['value']
-        return cpuUtilization_3hr
+        m = r[0]['aggregatedDatapoints']
+        return m
 
     return 0
 
@@ -224,7 +221,7 @@ for db in adb:
     metrics_payload['iops_3hr'] = fetch_adb_iops_metrics( auth, db['compartmentId'], db['id'] )
 
     print('shipping adb metrics payload to Splunk')
-    splunk.deliver_payload(metrics_payload, 'adb_metrics_testing', key_for_aws, source='OCI')
+    splunk.deliver_payload(metrics_payload, 'adb_metrics', key_for_aws, source='OCI')
 
     selected_fields_db = {}
 
