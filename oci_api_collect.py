@@ -230,8 +230,8 @@ for db in adb:
     # print(f"fetching adb IOPS metrics for {db['dbName']}")
     metrics_payload['iops_3hr'] = fetch_adb_iops_metrics( auth, db['compartmentId'], db['id'] )
 
-    print('skipping adb metrics payload to Splunk')
-    # splunk.deliver_payload(metrics_payload, 'adb_metrics', key_for_aws, source='OCI')
+    print('shipping adb metrics payload to Splunk')
+    splunk.deliver_payload(metrics_payload, 'adb_metrics', key_for_aws, source='OCI')
 
     selected_fields_db = {}
 
@@ -267,8 +267,8 @@ for db in adb:
 # Send a batch payload to Splunk.
 # ----------------------------------------------------------------------------------------------
 
-# print('shipping ADB batch payload to Splunk')
-# splunk.deliver_batch_payload(batch_payload, key_for_aws)
+print('shipping ADB batch payload to Splunk')
+splunk.deliver_batch_payload(batch_payload, key_for_aws)
 
 
 
