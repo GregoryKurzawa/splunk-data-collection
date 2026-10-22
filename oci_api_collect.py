@@ -136,7 +136,6 @@ def fetch_adb_cpuUtilization_metrics ( auth, cId, rId ):
 
 
 
-
 # Using the AWS key here because I didn't want to ask for another HEC key from the Splunk team.
 # This is fine because we can change the "source" and "sourcetype" to be whatever we want.
 
@@ -167,23 +166,34 @@ with open(compartmentsList, 'r') as file:
 
 
 
-# ----------------------------------------------------------------------------------------------
-# data collection
-# search the list of compartments for autonomous database details
+# ----------------------------------------------------------------------------------------------------
+# data collection: ADBs & ACDs
+# search the list of compartments for autonomouse container database and autonomous database details
 # 'adb' is a list of Autonomous DataBase (ADB) details
-# ----------------------------------------------------------------------------------------------
+# 'acd' is a list of Autonomous Container DataBase (ACD) details
+# ----------------------------------------------------------------------------------------------------
 
 adb = []
-endpoint = 'database.us-langley-1.oraclegovcloud.com/20160918/autonomousDatabases'
+acd = []
+
+adb_endpoint = 'database.us-langley-1.oraclegovcloud.com/20160918/autonomousDatabases'
+acd_endpoint = 'database.us-langley-1.oraclegovcloud.com/20160918/autonomousContainerDatabases'
 
 for compartmentId in cl:
 
     print('looking for ADBs in compartmentId ' + compartmentId)
-    r = loci.fetch_api_data( auth, endpoint, compartmentId ).json()
+    r = loci.fetch_api_data( auth, adb_endpoint, compartmentId ).json()
 
     if ( isinstance(r, list) ):
         for i in r:
             adb.append(i)
+
+    print('looking for ACDs in compartmentId ' + compartmentId)
+    r = loci.fetch_api_data( auth, acd_endpoint, compartmentId ).json()
+
+    if ( isinstance(r, list) ):
+        for i in r:
+            acd.append(i)
 
 
 
@@ -220,8 +230,8 @@ for db in adb:
     # print(f"fetching adb IOPS metrics for {db['dbName']}")
     metrics_payload['iops_3hr'] = fetch_adb_iops_metrics( auth, db['compartmentId'], db['id'] )
 
-    print('shipping adb metrics payload to Splunk')
-    splunk.deliver_payload(metrics_payload, 'adb_metrics', key_for_aws, source='OCI')
+    print('skipping adb metrics payload to Splunk')
+    # splunk.deliver_payload(metrics_payload, 'adb_metrics', key_for_aws, source='OCI')
 
     selected_fields_db = {}
 
@@ -257,7 +267,49 @@ for db in adb:
 # Send a batch payload to Splunk.
 # ----------------------------------------------------------------------------------------------
 
-print('shipping batch payload to Splunk')
-splunk.deliver_batch_payload(batch_payload, key_for_aws)
+# print('shipping ADB batch payload to Splunk')
+# splunk.deliver_batch_payload(batch_payload, key_for_aws)
+
+
+
+# ----------------------------------------------------------------------------------------------
+# The JSON for an ACD is large. We don't need all that data; instead of sending it all to
+# Splunk we keep only what we want and throw the rest away.
+# Also we modify the "source" and "sourcetype" of the results.
+# ----------------------------------------------------------------------------------------------
+
+acd_batch_payload = []
+
+for db in acd:
+
+    acd_payload = {
+        'compartmentId': db['compartmentId'],
+        'autonomousVmClusterId': db['autonomousVmClusterId'],
+        'id': db['id'],
+        'availableCpus': db['availableCpus'],
+        'dbName': db['dbName'],
+        'dbUniqueName': db['dbUniqueName'],
+        'dbVersion': db['dbVersion'],
+        'displayName': db['displayName'],
+        'isDataGuardEnabled': db['isDataGuardEnabled'],
+        'lifecycleState': db['lifecycleState'],
+        'provisionedCpus': db['provisionedCpus'],
+        'reclaimableCpus': db['reclaimableCpus'],
+        'reservedCpus': db['reservedCpus'],
+        'timeOfLastBackup': db['timeOfLastBackup'],
+        'totalCpus': db['totalCpus'],
+    }
+
+    acd_batch_payload.append( {'source': 'OCI', 'sourcetype': 'ACD', 'event': acd_payload} )
+
+
+
+# ----------------------------------------------------------------------------------------------
+# Send a batch payload to Splunk.
+# ----------------------------------------------------------------------------------------------
+
+print('shipping ACD batch payload to Splunk')
+splunk.deliver_batch_payload(acd_batch_payload, key_for_aws)
+
 
 

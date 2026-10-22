@@ -27,14 +27,14 @@ def authenticate():
     private_key_file_location=config['key_file'],
     pass_phrase=config['pass_phrase'] )
 
-    print('\nAuthentication Configuration')
-    print('tenancy: ' + config['tenancy'])
-    print('user: ' + config['user'])
-    print('fingerprint: ' + config['fingerprint'])
-    print('key_file: ' + config['key_file'])
-    try: print('pass_phrase: ' + config['pass_phrase'])
-    except: print('pass_phrase: None')
-    print('\n')
+    # print('\nAuthentication Configuration')
+    # print('tenancy: ' + config['tenancy'])
+    # print('user: ' + config['user'])
+    # print('fingerprint: ' + config['fingerprint'])
+    # print('key_file: ' + config['key_file'])
+    # try: print('pass_phrase: ' + config['pass_phrase'])
+    # except: print('pass_phrase: None')
+    # print('\n')
 
     return config, auth
 
