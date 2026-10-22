@@ -292,6 +292,7 @@ for db in acd:
         'dbVersion': db['dbVersion'],
         'displayName': db['displayName'],
         'isDataGuardEnabled': db['isDataGuardEnabled'],
+        'definedTags': db['definedTags'],
         'lifecycleState': db['lifecycleState'],
         'provisionedCpus': db['provisionedCpus'],
         'reclaimableCpus': db['reclaimableCpus'],
