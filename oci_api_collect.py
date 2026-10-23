@@ -175,25 +175,60 @@ with open(compartmentsList, 'r') as file:
 
 adb = []
 acd = []
+backup_destinations = []
 
 adb_endpoint = 'database.us-langley-1.oraclegovcloud.com/20160918/autonomousDatabases'
 acd_endpoint = 'database.us-langley-1.oraclegovcloud.com/20160918/autonomousContainerDatabases'
+backup_dest_endpoint = 'database.us-langley-1.oraclegovcloud.com/20160918/backupDestinations'
 
 for compartmentId in cl:
 
-    print('looking for ADBs in compartmentId ' + compartmentId)
-    r = loci.fetch_api_data( auth, adb_endpoint, compartmentId ).json()
+    # print('looking for ADBs in compartmentId ' + compartmentId)
+    # r = loci.fetch_api_data( auth, adb_endpoint, compartmentId ).json()
+
+    # if ( isinstance(r, list) ):
+    #     for i in r:
+    #         adb.append(i)
+
+    # print('looking for ACDs in compartmentId ' + compartmentId)
+    # r = loci.fetch_api_data( auth, acd_endpoint, compartmentId ).json()
+
+    # if ( isinstance(r, list) ):
+    #     for i in r:
+    #         acd.append(i)
+
+    print('looking for backup destinations in compartmentId ' + compartmentId)
+    r = loci.fetch_api_data( auth, backup_dest_endpoint, compartmentId ).json()
 
     if ( isinstance(r, list) ):
         for i in r:
-            adb.append(i)
+            backup_destinations.append(i)
 
-    print('looking for ACDs in compartmentId ' + compartmentId)
-    r = loci.fetch_api_data( auth, acd_endpoint, compartmentId ).json()
 
-    if ( isinstance(r, list) ):
-        for i in r:
-            acd.append(i)
+
+# ----------------------------------------------------------------------------------------------------------
+# The JSON for a Backup Destinations isn't very large. We'll just send it all to Splunk.
+# Also we modify the "source" and "sourcetype" of the results.
+# ----------------------------------------------------------------------------------------------------------
+
+bdest_batch_payload = []
+
+for d in backup_destinations:
+    bdest_batch_payload.append( {'source': 'OCI', 'sourcetype': 'BackupDest', 'event': d} )
+
+
+
+
+# ----------------------------------------------------------------------------------------------
+# Send a batch payload to Splunk.
+# ----------------------------------------------------------------------------------------------
+
+print('shipping BackupDestination batch payload to Splunk')
+splunk.deliver_batch_payload(bdest_batch_payload, key_for_aws)
+
+
+
+exit(0)
 
 
 
@@ -311,6 +346,29 @@ for db in acd:
 
 print('shipping ACD batch payload to Splunk')
 splunk.deliver_batch_payload(acd_batch_payload, key_for_aws)
+
+
+
+# ----------------------------------------------------------------------------------------------------------
+# The JSON for a Backup Destinations isn't very large. We'll just send it all to Splunk.
+# Also we modify the "source" and "sourcetype" of the results.
+# ----------------------------------------------------------------------------------------------------------
+
+bdest_batch_payload = []
+
+for d in backup_destinations:
+    bdest_batch_payload.append( {'source': 'OCI', 'sourcetype': 'BackupDest', 'event': d} )
+
+
+
+
+# ----------------------------------------------------------------------------------------------
+# Send a batch payload to Splunk.
+# ----------------------------------------------------------------------------------------------
+
+print('shipping BackupDestination batch payload to Splunk')
+splunk.deliver_batch_payload(bdest_batch_payload, key_for_aws)
+
 
 
 
