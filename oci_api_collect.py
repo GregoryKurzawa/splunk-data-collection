@@ -183,19 +183,19 @@ backup_dest_endpoint = 'database.us-langley-1.oraclegovcloud.com/20160918/backup
 
 for compartmentId in cl:
 
-    # print('looking for ADBs in compartmentId ' + compartmentId)
-    # r = loci.fetch_api_data( auth, adb_endpoint, compartmentId ).json()
+    print('looking for ADBs in compartmentId ' + compartmentId)
+    r = loci.fetch_api_data( auth, adb_endpoint, compartmentId ).json()
 
-    # if ( isinstance(r, list) ):
-    #     for i in r:
-    #         adb.append(i)
+    if ( isinstance(r, list) ):
+        for i in r:
+            adb.append(i)
 
-    # print('looking for ACDs in compartmentId ' + compartmentId)
-    # r = loci.fetch_api_data( auth, acd_endpoint, compartmentId ).json()
+    print('looking for ACDs in compartmentId ' + compartmentId)
+    r = loci.fetch_api_data( auth, acd_endpoint, compartmentId ).json()
 
-    # if ( isinstance(r, list) ):
-    #     for i in r:
-    #         acd.append(i)
+    if ( isinstance(r, list) ):
+        for i in r:
+            acd.append(i)
 
     print('looking for backup destinations in compartmentId ' + compartmentId)
     r = loci.fetch_api_data( auth, backup_dest_endpoint, compartmentId ).json()
@@ -225,10 +225,6 @@ for d in backup_destinations:
 
 print('shipping BackupDestination batch payload to Splunk')
 splunk.deliver_batch_payload(bdest_batch_payload, key_for_aws)
-
-
-
-exit(0)
 
 
 
