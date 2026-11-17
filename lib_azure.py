@@ -12,7 +12,10 @@ reconfigure(highlight=False)
 
 def get_subscription_by_id(h, args):
 
-    ENDPOINT="https://management.usgovcloudapi.net/subscriptions/" + args.subscriptionId + "?api-version=2016-06-01"
+    if ( args.environment == "gov" ):
+        ENDPOINT="https://management.usgovcloudapi.net/subscriptions/" + args.subscriptionId + "?api-version=2016-06-01"
+    else: ENDPOINT="https://management.azure.com/subscriptions/" + args.subscriptionId + "?api-version=2022-12-01"
+
     r = requests.get(ENDPOINT, headers=h).json()
     return r
 
@@ -22,7 +25,7 @@ def get_subscription_by_id(h, args):
 
 
 # --------------------------------------------------------------------------
-# GETs and returns an entire SUBSCRIPTION block given a subscription NAME 
+# GETs and returns an entire SUBSCRIPTION BLOCK given a subscription NAME 
 # --------------------------------------------------------------------------
 
 def get_subscription_by_name(h, args):
@@ -31,7 +34,11 @@ def get_subscription_by_name(h, args):
 
     for s in subs:
         if s['displayName'] == args.subscriptionName:
-            ENDPOINT="https://management.usgovcloudapi.net/subscriptions/" + s['subscriptionId'] + "?api-version=2016-06-01"
+
+            if ( args.environment == "gov" ):
+                ENDPOINT="https://management.usgovcloudapi.net/subscriptions/" + s['subscriptionId'] + "?api-version=2023-07-01"
+            else: ENDPOINT="https://management.azure.com/subscriptions/" + s['subscriptionId'] + "?api-version=2022-12-01"
+
             r = requests.get(ENDPOINT, headers=h).json()
             return r
 
@@ -46,7 +53,12 @@ def get_subscription_by_name(h, args):
 
 def list_subscriptions(h, args):
 
-    ENDPOINT="https://management.usgovcloudapi.net/subscriptions?api-version=2023-07-01"
+    if ( args.environment == "gov" ):
+        ENDPOINT="https://management.usgovcloudapi.net/subscriptions?api-version=2023-07-01"
+    else: ENDPOINT="https://management.azure.com/subscriptions?api-version=2022-12-01"
+
+    print( f"ENDPOINT: {ENDPOINT}")
+
     r = requests.get(ENDPOINT, headers=h).json()
     rprint ('[#ff99ff]SUBSCRIPTIONS')
     for d in r['value']:
@@ -58,7 +70,10 @@ def list_subscriptions(h, args):
 
 def list_resource_groups(h, args):
 
-    ENDPOINT="https://management.usgovcloudapi.net/subscriptions/" + args.subscription + "/resourceGroups?api-version=2024-11-01"
+    if ( args.environment == "gov" ):
+        ENDPOINT="https://management.usgovcloudapi.net/subscriptions/" + args.subscription + "/resourceGroups?api-version=2024-11-01"
+    else: ENDPOINT="https://management.azure.com/subscriptions/" + args.subscription + "/resourceGroups?api-version=2021-04-01"
+
     r = requests.get(ENDPOINT, headers=h).json()
     rprint ('[#ff99ff]RESOURCE GROUPS')
     for d in r['value']:
@@ -68,7 +83,10 @@ def list_resource_groups(h, args):
 
 def list_vms(h, args):
 
-    ENDPOINT="https://management.usgovcloudapi.net/subscriptions/" + args.subscription + "/providers/Microsoft.Compute/virtualMachines?api-version=2024-11-01"
+    if ( args.environment == "gov" ):
+        ENDPOINT="https://management.usgovcloudapi.net/subscriptions/" + args.subscription + "/providers/Microsoft.Compute/virtualMachines?api-version=2024-11-01"
+    else: ENDPOINT="https://management.azure.com/subscriptions/" + args.subscription + "/providers/Microsoft.Compute/virtualMachines?api-version=2026-04-01"
+
     r = requests.get(ENDPOINT, headers=h).json()
     rprint ('[#ff99ff]VIRTUAL MACHINES')
     for d in r['value']:
@@ -76,9 +94,12 @@ def list_vms(h, args):
 
 
 
-def list_storage_accounts(h, subscription):
+def list_storage_accounts(h, subscription, args):
 
-    ENDPOINT="https://management.usgovcloudapi.net/subscriptions/" + subscription + "/providers/Microsoft.Storage/storageAccounts?api-version=2024-01-01"
+    if ( args.environment == "gov" ):
+        ENDPOINT="https://management.usgovcloudapi.net/subscriptions/" + subscription + "/providers/Microsoft.Storage/storageAccounts?api-version=2024-01-01"
+    else: ENDPOINT="https://management.azure.com/subscriptions/" + subscription + "/providers/Microsoft.Storage/storageAccounts?api-version=2026-09-01"
+
     r = requests.get(ENDPOINT, headers=h).json()
     rprint ('[#ff99ff]STORAGE ACCOUNTS')
     for d in r['value']:
@@ -96,17 +117,25 @@ def list_storage_accounts(h, subscription):
 # returns all the json for BOTH kinds of vaults in that Subscription.
 # --------------------------------------------------------------------------
 
-def list_vaults_by_subscription(h, s):
+def list_vaults_by_subscription(h, s, args):
 
     # Recovery Services Vaults
-    ENDPOINT="https://management.usgovcloudapi.net/subscriptions/" + s['subscriptionId'] + "/providers/Microsoft.RecoveryServices/vaults?api-version=2025-02-01"
+    if ( args.environment == "gov" ):
+        ENDPOINT="https://management.usgovcloudapi.net/subscriptions/" + s['subscriptionId'] + "/providers/Microsoft.RecoveryServices/vaults?api-version=2025-02-01"
+    else: ENDPOINT="https://management.azure.com/subscriptions/" + s['subscriptionId'] + "/providers/Microsoft.RecoveryServices/vaults?api-version=2026-07-01" 
+
     recovery_services_vaults = requests.get(ENDPOINT, headers=h).json()
+    rprint ('\nSubscription: [#ffaabb]{}'.format(s['displayName']))
+    rprint ('Subscription Id: [#ffffff]{}'.format(s['subscriptionId']))
     rprint ('\n[#ff99ff]RECOVERY SERVICES VAULTS')
     for d in recovery_services_vaults['value']:
         rprint ('[#ffccff]{} [#ffffff]{} [#6699ff]{}'.format(d['type'], d['name'], d['location']))
 
     # Backup Vaults
-    ENDPOINT="https://management.usgovcloudapi.net/subscriptions/" + s['subscriptionId'] + "/providers/Microsoft.DataProtection/backupVaults?api-version=2025-07-01"
+    if ( args.environment == "gov" ):
+        ENDPOINT="https://management.usgovcloudapi.net/subscriptions/" + s['subscriptionId'] + "/providers/Microsoft.DataProtection/backupVaults?api-version=2025-07-01"
+    else: ENDPOINT="https://management.azure.com/subscriptions/" + s['subscriptionId'] + "/providers/Microsoft.DataProtection/backupVaults?api-version=2025-07-01" 
+
     backup_vaults = requests.get(ENDPOINT, headers=h).json()
     rprint ('\n[#ff99ff]BACKUP VAULTS')
     for d in backup_vaults['value']:
@@ -128,14 +157,14 @@ def list_vaults(h, args):
 
     if args.subscriptionId:
         s = get_subscription_by_id(h, args)
-        list_vaults_by_subscription(h, s)
+        list_vaults_by_subscription(h, s, args)
     elif args.subscriptionName:
         s = get_subscription_by_name(h, args)
-        list_vaults_by_subscription(h, s)
+        list_vaults_by_subscription(h, s, args)
     else: 
         subs = list_subscriptions(h, args)
         for s in subs:
-            list_vaults_by_subscription(h, s)
+            list_vaults_by_subscription(h, s, args)
         
 
 

@@ -3,9 +3,17 @@ import requests
 import json
 import os
 import argparse
-import lib_azure
-import lib_splunk
+import lib_azure as azure
+import lib_splunk as splunk
 from datetime import datetime, timedelta
+
+# ignore the error we get from using numpy on WSL1
+import warnings
+warnings.filterwarnings(
+    "ignore",
+    message="Signature.*for <class 'numpy.longdouble'> does not match any known type",
+    category=UserWarning,
+)
 
 import pandas as pd
 import numpy as np
@@ -13,6 +21,8 @@ import numpy as np
 from rich import print as rprint
 from rich import reconfigure
 reconfigure(highlight=False)
+
+
 
 
 
@@ -34,28 +44,35 @@ subparsers = parser.add_subparsers(dest='subparser_name')
 
 parser_subs = subparsers.add_parser('subs', help="subscriptions")
 parser_subs.add_argument("-p", "--payload", help="send payload to Splunk", action='store_true', default=False, required=False)
+parser_subs.add_argument("-e", "--environment", help="Azure Commercial (com) | Government (gov)", type=str, choices=["com", "gov"], default="gov", required=False)
 
 parser_rgs = subparsers.add_parser('rgs', help="resource groups")
 parser_rgs.add_argument("-s", "--subscription", help="subscription ID", required=True)
+parser_rgs.add_argument("-e", "--environment", help="Azure Commercial (com) | Government (gov)", type=str, choices=["com", "gov"], default="gov", required=False)
 
 parser_vms = subparsers.add_parser('vms', help="virtual machines")
 parser_vms.add_argument("-s", "--subscription", help="subscription ID", required=True)
+parser_vms.add_argument("-e", "--environment", help="Azure Commercial (com) | Government (gov)", type=str, choices=["com", "gov"], default="gov", required=False)
 
 parser_vaults = subparsers.add_parser('vaults', help="list backup vaults by subscription name or id")
 parser_vaults.add_argument("-i", "--subscriptionId", help="subscription ID", required=False)
 parser_vaults.add_argument("-n", "--subscriptionName", help="subscription NAME", required=False)
+parser_vaults.add_argument("-e", "--environment", help="Azure Commercial (com) | Government (gov)", type=str, choices=["com", "gov"], default="gov", required=False)
 
 parser_stgacts = subparsers.add_parser('stgacts', help="storage accounts")
 parser_stgacts.add_argument("-s", "--subscription", help="subscription ID", required=False)
+parser_stgacts.add_argument("-e", "--environment", help="Azure Commercial (com) | Government (gov)", type=str, choices=["com", "gov"], default="gov", required=False)
 
 parser_jobs = subparsers.add_parser('jobs', help="list all backup jobs (by subscription if provided)")
 parser_jobs.add_argument("-i", "--subscriptionId", help="subscription ID", required=False)
 parser_jobs.add_argument("-n", "--subscriptionName", help="subscription NAME", required=False)
 parser_jobs.add_argument("-l", "--hours", help="list only the last #hours of jobs", type=int, default=24, required=False)
 parser_jobs.add_argument("-p", "--payload", help="send payload to Splunk", action='store_true', default=False, required=False)
+parser_jobs.add_argument("-e", "--environment", help="Azure Commercial (com) | Government (gov)", type=str, choices=["com", "gov"], default="gov", required=False)
 
 parser_tags = subparsers.add_parser('tags', help="create a tags report")
 parser_tags.add_argument("-p", "--payload", help="send payload to Splunk", action='store_true', default=False, required=False)
+parser_tags.add_argument("-e", "--environment", help="Azure Commercial (com) | Government (gov)", type=str, choices=["com", "gov"], default="gov", required=False)
 
 args = parser.parse_args()
 
@@ -66,11 +83,28 @@ args = parser.parse_args()
 # ------------------------------------------------
 
 # the following 4 variables are required by MSAL:
+# They differ depending on whether we're getting data from Azure Gov (MAG) or Azure Commercial.
 
-AUTHORITY="https://login.microsoftonline.us/7c8bb92a-832a-4d12-8e7e-c569d7b232c9"
-CLIENT_ID="26c6b700-7a24-4683-925c-4f1553644a68"		# python-backup-data-collection app
-CLIENT_SECRET="4TCrvp.MJ~~.nfzf~a9G6q6vSQcKO0LQ1p"		# python-backup-data-collection app secret Id VALUE
-SCOPE=["https://management.usgovcloudapi.net/.default"]
+if (args.environment == 'com'):
+
+    print('\nVariables for Azure COMMERCIAL')
+    TENANT_ID="fbdcedc1-70a9-414b-bfa5-c3063fc3395e"
+    AUTHORITY = f"https://login.microsoftonline.us/{TENANT_ID}"
+    SCOPE = ["https://management.azure.com/.default"]
+
+else:
+
+    print('\nVariables for Azure GOVERNMENT')
+    TENANT_ID="7c8bb92a-832a-4d12-8e7e-c569d7b232c9"
+    AUTHORITY = f"https://login.microsoftonline.us/{TENANT_ID}"
+    SCOPE=["https://management.usgovcloudapi.net/.default"]
+
+
+print (f'TENANT_ID: {TENANT_ID}')
+print (f'AUTHORITY: {AUTHORITY}')
+print (f'CLIENT_ID: {CLIENT_ID}')
+print (f'CLIENT_SECRET: {CLIENT_SECRET}')
+print (f'SCOPE: {SCOPE}')
 
 
 
@@ -86,7 +120,7 @@ def generate_tag_report():
     holding_frame = []
 
     # get all subscriptions
-    SUBSCRIPTIONS="https://management.usgovcloudapi.net/subscriptions?api-version=2023-07-01"
+    SUBSCRIPTIONS="https://management.azure.com/subscriptions?api-version=2022-12-01"
     try: r = requests.get(SUBSCRIPTIONS, headers=h).json()
     except: 
         rprint ('[#ff3300]Failure to GET Azure subscriptions list.')
@@ -99,7 +133,6 @@ def generate_tag_report():
         rprint ('[#ffffff]{} '.format(s['subscriptionId']), end="")
         rprint ('[#ffaabb]{} '.format(s['displayName']), end="")
         rprint ('[#00aa77]{}'.format(s['state']))
-
 
 
 
@@ -124,9 +157,6 @@ def generate_tag_report():
                                                                                     'type': sqls['type'],
                                                                                     'tags': tag_block
                                                                                  } } )
-
-
-
 
 
 
@@ -175,6 +205,8 @@ def generate_tag_report():
             json_row['tags'] = tag_string
             holding_frame.append(json_row)
 
+
+
     # ------------------------------------------------
     # pandas DataFrame output to csv
     # ------------------------------------------------
@@ -194,7 +226,7 @@ def list_jobs_by_subscription( h, s, hours ):
 
     payload = []
 
-    vaults = azure.list_vaults_by_subscription(h, s)
+    vaults = azure.list_vaults_by_subscription(h, s, args)
 
     _now = datetime.now()
     startTime = ( _now - timedelta(hours=hours) ).strftime("%Y-%m-%d %I:%M:%S %p")		# WORKING
@@ -204,6 +236,8 @@ def list_jobs_by_subscription( h, s, hours ):
 
     for v in vaults['value']:
 
+        print (f"searching vault {v['name']} for jobs")
+
         # Important note: the filter in this command does not seem correct, but it is.
         # It is correct only because the filters for this API don't work as they should, by
         # Microsoft's admission. We should be able to use startTime "between" <date> and <date>
@@ -212,12 +246,19 @@ def list_jobs_by_subscription( h, s, hours ):
         # Someday try something like this:
         # filter=startTime between '" + startTime + "' and '" + endTime "'
 
-        url = "https://management.usgovcloudapi.net" + v['id'] + "/backupJobs?api-version=2025-02-01&$filter=startTime eq '" + startTime + "' and endTime eq '" + endTime + "'"
+        if (args.environment == 'com'):
+            url = "https://management.azure.com" + v['id'] + "/backupJobs?api-version=2025-02-01&$filter=startTime eq '" + startTime + "' and endTime eq '" + endTime + "'"
+        elif (args.environment == 'gov'):
+            url = "https://management.usgovcloudapi.net" + v['id'] + "/backupJobs?api-version=2025-02-01&$filter=startTime eq '" + startTime + "' and endTime eq '" + endTime + "'"
+
         rprint ('jobs in VAULT: [#ffffff]' + v['name'] )
         r = requests.get(url, headers=h).json()
 
         if 'value' in r:
             for j in r['value']:
+
+                j['environment'] = args.environment
+
                 j['subscriptionName'] = s['displayName']
                 if 'subscriptionId' not in j: j['subscriptionId'] = s['subscriptionId']
                 if 'vault' not in j: j['vault'] = v['name']
@@ -242,7 +283,7 @@ def list_jobs_by_subscription( h, s, hours ):
 
 
 # ------------------------------------------------
-# main
+# MAIN
 # ------------------------------------------------
 
 payload = []
@@ -263,12 +304,13 @@ app = msal.ConfidentialClientApplication(
 result = app.acquire_token_for_client(scopes=SCOPE)
 
 if "access_token" in result:
+    print ('\nAccess token retrieved.')
     h = {
         'Authorization': 'Bearer ' + result['access_token'],
     }
 
 else:
-    print("Token acquisition failed", result)
+    print("Access token acquisition failed\n\n", result)
     exit(0)
 
 
@@ -291,12 +333,15 @@ if args.subparser_name == 'stgacts':
 
 
 if args.subparser_name == 'jobs':
+
     if ( args.subscriptionId ):
         s = azure.get_subscription_by_id(h, args)
         payload = list_jobs_by_subscription(h, s, args.hours)
+
     elif ( args.subscriptionName ):
         s = azure.get_subscription_by_name(h, args)
         payload = list_jobs_by_subscription(h, s, args.hours)
+
     else:
         subs = azure.list_subscriptions(h, args)
         for s in subs:
@@ -318,6 +363,7 @@ if args.subparser_name == 'tags':
 if 'payload' in args:
     if args.payload == False:
         rprint ('\n[#99ffcc]skipping payload delivery to Splunk')
+        # print(payload)
     elif payload:
         rprint ('\n[#99ffcc]sending payload to Splunk')
         splunk.deliver_batch_payload(payload, SPLUNK_KEY_AZURE)

@@ -122,11 +122,13 @@ def get_plan_names(a, n):
 
 
 
-# ----------------------------------------
+# ------------------------------------------------------------------------------------------
 # go through all pages of BackupJobs
-# ----------------------------------------
+# accepts the page iterator and the sourceType (st) that will be added to each json block
+# to diferentiate between commercial and gov data
+# ------------------------------------------------------------------------------------------
 
-def build_payload(page_iterator):
+def build_payload(page_iterator, st):
 
     payload = []
 
@@ -144,7 +146,7 @@ def build_payload(page_iterator):
             # bj['CreatedBy']['BackupPlanName'] = backup_plan_name
 
             # append BackupJob to payload
-            payload.append( {'sourcetype': 'aws_backup_gather', 'event': bj} )
+            payload.append( {'sourcetype': st, 'event': bj} )
 
     return payload
 
@@ -160,6 +162,8 @@ def build_payload(page_iterator):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-g", "--gov", action='store_true', help="query the GovCloud environment")
+parser.add_argument("-b", "--back", help="collect data going # hours back", required=True)
+parser.add_argument("-p", "--printOnly", action='store_true', help="print payload without sending to Splunk")
 parser.parse_args()
 args = parser.parse_args()
 
@@ -192,14 +196,16 @@ else:
 if ( args.gov ):
     # GovCloud
     aId = '373659398962'
-    boto3.setup_default_session( profile_name='373659398962_gss-operations-readonly', region_name='us-east-1' )
+    boto3.setup_default_session( profile_name='373659398962_gss-operations-readonly', region_name='us-gov-west-1' )
     cloudAccessRole = '--cloud-access-role=gss-operations-readonly'
+    sourceType = 'aws_backup_gather_gov'
 
 else:
-    # "regular"
+    # Commercial
     aId = '849406929254'
     boto3.setup_default_session( profile_name='849406929254_governance20-application-admin', region_name='us-east-1' )
     cloudAccessRole = '--cloud-access-role=governance20-application-admin'
+    sourceType = 'aws_backup_gather'
 
 kion_url = '--url=https://cloudtamer.cms.gov'
 account = '--account=' + aId
@@ -281,8 +287,9 @@ subprocess.run([ctkey, "savecreds", kion_url, "--app-api-key=" + TOKEN, account,
 # --------------------------------------------------------------------------------------
 
 # if we don't -5 to the hours we get skewed results; something to do with tz; fix later
-hoursBack = 6
-# hoursBack = 24
+# is this still true?
+# hoursBack = 6
+hoursBack = int(args.back)
 # t = datetime.datetime.now() - datetime.timedelta(hours=(hoursBack-5))
 t = datetime.datetime.now() - datetime.timedelta(hours=(hoursBack))
 
@@ -306,7 +313,15 @@ page_iterator = paginator.paginate(ByAccountId='*', ByCreatedAfter=t)
 # account = '--account=849406929254'
 # subprocess.run([ctkey, "savecreds", kion, "--app-api-key=" + TOKEN, account, cloudAccessRole])
 
-payload = build_payload(page_iterator)
+payload = build_payload(page_iterator, sourceType)
+
+
+
+if ( args.printOnly ):
+    print (json.dumps(payload, indent=4, default=str))
+    exit(0)
+
+
 
 # x = 1 
 # for bj in payload:
@@ -321,5 +336,5 @@ splunk.deliver_batch_payload(payload, key_for_aws)
 
 # Send an event to Splunk indicating that the script completed successfully.
 payload = { 'status': 'aws_backup_gather script completed' }
-splunk.deliver_payload(payload, 'aws_backup_gather', key_for_aws)
+splunk.deliver_payload(payload, sourceType, key_for_aws)
 

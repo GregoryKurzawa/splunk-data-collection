@@ -40,7 +40,6 @@ def get_app_api_keys(t):
     }
 
     r = requests.get(href, headers=h, verify=False).json()
-
     return r
 
 
@@ -83,6 +82,25 @@ def rotate_app_api_key(t):
 
     r = requests.post(href, headers=h, json=b, verify=False).json()
     newToken = r['data']['key']
+    print('new token: ' + newToken)
 
     with open('./kion_app_api_key', 'w') as file:
         file.write(newToken)
+
+
+
+# -----------------------------------------------
+# Returns raw data from a Kion endpoint (ep).
+# -----------------------------------------------
+
+def raw(ep, t):
+
+    href = kion + ep
+
+    h = {
+        'content-type': 'application/json',
+        'authorization': 'Bearer ' + t
+    }
+
+    r = requests.get(href, headers=h, verify=False).json()
+    return r

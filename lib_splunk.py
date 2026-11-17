@@ -14,7 +14,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # the key looks like 'Splunk <key>'
 # --------------------------------------------------------------------------------
 
-def deliver_payload(p, sourcetype, key):
+def deliver_payload(p, sourcetype, key, **kwargs):
 
     url = "https://dlpvpsp023.cacheeast.internal.cms.gov:8088/services/collector"
 
@@ -29,6 +29,9 @@ def deliver_payload(p, sourcetype, key):
     payload = {}
     payload['sourcetype'] = sourcetype
     payload['event'] = p
+
+    if ( 'source' in kwargs ):
+        payload['source'] = kwargs['source']
 
     s = requests.Session()
     r = s.post(url, headers=h, json=payload, verify=False).json()
